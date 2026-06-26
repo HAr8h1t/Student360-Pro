@@ -15,6 +15,9 @@ from flask_wtf.csrf import CSRFProtect, generate_csrf
 # Import the database object and models from models.py
 from models import db, Teacher, Student, Parent, Admin, Class, Doubt, Complaint, QuizAttempt
 
+# Import security utilities
+from security import SecurityHeaders
+
 # Import blueprints
 from auth import auth_bp
 from parent import parent_bp
@@ -56,6 +59,18 @@ if database_url:
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['FLASK_ADMIN_SWATCH'] = 'cerulean'
 
+# --- Security Configuration ---
+# Session security settings
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'True').lower() == 'true'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour session timeout
+app.config['SESSION_REFRESH_EACH_REQUEST'] = True
+
+# CSRF configuration
+app.config['WTF_CSRF_TIME_LIMIT'] = None  # No time limit for CSRF tokens
+app.config['WTF_CSRF_CHECK_DEFAULT'] = False  # We'll handle it manually for APIs
+
 # --- Extensions Initialization ---
 db.init_app(app)
 # Configure CORS to be more restrictive
@@ -77,6 +92,14 @@ app.register_blueprint(auth_bp, url_prefix='/api')
 app.register_blueprint(parent_bp, url_prefix='/api')
 app.register_blueprint(student_bp, url_prefix='/api')
 app.register_blueprint(teacher_bp, url_prefix='/api')
+
+
+# --- Security Headers Middleware ---
+@app.after_request
+def apply_security_headers(response):
+    """Apply security headers to all responses."""
+    response = SecurityHeaders.apply_headers(response)
+    return response
 
 
 @app.errorhandler(404)
