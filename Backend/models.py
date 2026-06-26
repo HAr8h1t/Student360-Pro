@@ -35,13 +35,42 @@ class Teacher(db.Model, UserMixin):
     name = db.Column(db.String(100), nullable=False)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    last_login = db.Column(db.DateTime, nullable=True)
+    login_attempts = db.Column(db.Integer, default=0)
+    locked_until = db.Column(db.DateTime, nullable=True)
+    password_changed_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     classes = db.relationship('Class', secondary=teacher_class_link, back_populates='teachers')
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        self.password_hash = generate_password_hash(password, method='pbkdf2:sha256', salt_length=16)
+        self.password_changed_at = datetime.datetime.utcnow()
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+    
+    def is_locked(self):
+        """Check if account is locked due to failed login attempts."""
+        if self.locked_until and datetime.datetime.utcnow() < self.locked_until:
+            return True
+        elif self.locked_until and datetime.datetime.utcnow() >= self.locked_until:
+            # Unlock the account
+            self.locked_until = None
+            self.login_attempts = 0
+        return False
+    
+    def reset_login_attempts(self):
+        """Reset login attempts counter on successful login."""
+        self.login_attempts = 0
+        self.locked_until = None
+        self.last_login = datetime.datetime.utcnow()
+    
+    def increment_login_attempts(self):
+        """Increment failed login attempts and lock if threshold exceeded."""
+        self.login_attempts += 1
+        if self.login_attempts >= 5:
+            self.locked_until = datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
 
     def to_dict(self):
         return {"id": self.id, "name": self.name, "username": self.username, "classes": [c.name for c in self.classes]}
@@ -54,6 +83,12 @@ class Student(db.Model, UserMixin):
     name = db.Column(db.String(100), nullable=False)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    last_login = db.Column(db.DateTime, nullable=True)
+    login_attempts = db.Column(db.Integer, default=0)
+    locked_until = db.Column(db.DateTime, nullable=True)
+    password_changed_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     class_id = db.Column(db.Integer, db.ForeignKey('class.id'), nullable=False)
     attendance = db.Column(db.Integer)
     marks = db.Column(JSON)
@@ -64,10 +99,33 @@ class Student(db.Model, UserMixin):
     quiz_attempts = db.relationship('QuizAttempt', back_populates='student', lazy='dynamic', cascade='all, delete-orphan')
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        self.password_hash = generate_password_hash(password, method='pbkdf2:sha256', salt_length=16)
+        self.password_changed_at = datetime.datetime.utcnow()
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+    
+    def is_locked(self):
+        """Check if account is locked due to failed login attempts."""
+        if self.locked_until and datetime.datetime.utcnow() < self.locked_until:
+            return True
+        elif self.locked_until and datetime.datetime.utcnow() >= self.locked_until:
+            # Unlock the account
+            self.locked_until = None
+            self.login_attempts = 0
+        return False
+    
+    def reset_login_attempts(self):
+        """Reset login attempts counter on successful login."""
+        self.login_attempts = 0
+        self.locked_until = None
+        self.last_login = datetime.datetime.utcnow()
+    
+    def increment_login_attempts(self):
+        """Increment failed login attempts and lock if threshold exceeded."""
+        self.login_attempts += 1
+        if self.login_attempts >= 5:
+            self.locked_until = datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
 
     def to_dict(self):
         return {
@@ -86,13 +144,42 @@ class Parent(db.Model, UserMixin):
     name = db.Column(db.String(100), nullable=False)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    last_login = db.Column(db.DateTime, nullable=True)
+    login_attempts = db.Column(db.Integer, default=0)
+    locked_until = db.Column(db.DateTime, nullable=True)
+    password_changed_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     children = db.relationship('Student', secondary='parent_student_link', back_populates='parents')
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        self.password_hash = generate_password_hash(password, method='pbkdf2:sha256', salt_length=16)
+        self.password_changed_at = datetime.datetime.utcnow()
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+    
+    def is_locked(self):
+        """Check if account is locked due to failed login attempts."""
+        if self.locked_until and datetime.datetime.utcnow() < self.locked_until:
+            return True
+        elif self.locked_until and datetime.datetime.utcnow() >= self.locked_until:
+            # Unlock the account
+            self.locked_until = None
+            self.login_attempts = 0
+        return False
+    
+    def reset_login_attempts(self):
+        """Reset login attempts counter on successful login."""
+        self.login_attempts = 0
+        self.locked_until = None
+        self.last_login = datetime.datetime.utcnow()
+    
+    def increment_login_attempts(self):
+        """Increment failed login attempts and lock if threshold exceeded."""
+        self.login_attempts += 1
+        if self.login_attempts >= 5:
+            self.locked_until = datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
     
     def to_dict(self):
         return {"id": self.id, "name": self.name, "username": self.username, "children": [s.id for s in self.children]}
@@ -104,12 +191,41 @@ class Admin(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    last_login = db.Column(db.DateTime, nullable=True)
+    login_attempts = db.Column(db.Integer, default=0)
+    locked_until = db.Column(db.DateTime, nullable=True)
+    password_changed_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        self.password_hash = generate_password_hash(password, method='pbkdf2:sha256', salt_length=16)
+        self.password_changed_at = datetime.datetime.utcnow()
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+    
+    def is_locked(self):
+        """Check if account is locked due to failed login attempts."""
+        if self.locked_until and datetime.datetime.utcnow() < self.locked_until:
+            return True
+        elif self.locked_until and datetime.datetime.utcnow() >= self.locked_until:
+            # Unlock the account
+            self.locked_until = None
+            self.login_attempts = 0
+        return False
+    
+    def reset_login_attempts(self):
+        """Reset login attempts counter on successful login."""
+        self.login_attempts = 0
+        self.locked_until = None
+        self.last_login = datetime.datetime.utcnow()
+    
+    def increment_login_attempts(self):
+        """Increment failed login attempts and lock if threshold exceeded."""
+        self.login_attempts += 1
+        if self.login_attempts >= 5:
+            self.locked_until = datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
 
 class Doubt(db.Model):
     __tablename__ = 'doubts'
